@@ -1,0 +1,43 @@
+version: '3'
+services:
+  web:
+    build: ./fastapi
+    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "80"]
+    volumes:
+      - ./fastapi:/app
+    ports:
+      - 8000:80
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+  worker:
+    build: ./fastapi
+    command: celery -A celery_worker worker -P solo --loglevel=info
+    volumes:
+      - ./fastapi:/app
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+  redis:
+    image: "redis:alpine"
+    ports:
+      - 6379:6379
+  chainlit-app:
+    build: ./chainlit
+    command: chainlit run app.py --port 7860
+    volumes:
+      - ./chainlit:/app
+    ports:
+      - 7860:7860
